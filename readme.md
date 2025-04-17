@@ -10,21 +10,21 @@ This repository is designed to offer:
 Currently, the hover feature is operational, but requires a few manual setup steps.
 
 ## Steps to Enable Documentation
-
-1. Copy the `.joyride` and `dart_parser` directories into the root directory of your ClojureDart project.
-2. In the clojuredart projects root directory, run `dart pub get` to generate the `.dart_tool/package_config.json` file.
-3. Run below commands:
+1. Install [Joyride](https://marketplace.visualstudio.com/items/?itemName=betterthantomorrow.joyride) vscode extension
+2. Copy the `.joyride` and `dart_parser` directories into the root directory of your ClojureDart project.
+3. In the clojuredart projects root directory, run `dart pub get` to generate the `.dart_tool/package_config.json` file.
+4. Run below commands:
 ```bash
 cd dart_parser
 
-# this is different from step 2.
+# this is different from step 3.
 dart pub get
 
 # this file is expected by joyride to show docs on hover over panel
 dart run gen_docs.dart --project-path PATH_TO_YOUR_PROJECT_ROOT_DIR > /tmp/cljd_flutter_widget_docs.json
 ```
-4. Restart your IDE.
-5. Hover over any Flutter widget name in a `.cljd` file. Note: The name should be formatted as `m/Name`, for example, `m/Text`.
+5. Restart your IDE.
+6. Hover over any Flutter widget name in a `.cljd` file. Note: The name should be formatted as `m/Name`, for example, `m/Text`.
 
 ### Additional Information
 
