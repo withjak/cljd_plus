@@ -1,0 +1,5 @@
+.clj-kondo/
+.cpcache/
+.dart_tool/
+.lsp
+pubspec.lock

@@ -1,0 +1,15 @@
+# pubspec.yaml
+name: flutter_doc_extractor
+description: Extracts documentation or lists widgets from Flutter SDK.
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  analyzer: ^6.4.1 # Use the latest version
+  path: ^1.9.0
+  args: ^2.5.0
+  convert: ^3.1.1 # <-- Add or ensure this is present
+
+# Optional:
+# executables:
+#   flutter_doc_extractor: main
