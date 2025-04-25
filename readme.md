@@ -4,12 +4,13 @@ This repository is designed to offer:
 
 - [X] Documentation (including examples and constructor signatures) when hovering over Flutter widgets in ClojureDart
 - [ ] Auto-complete functionality
+    - [X] Suggest flutter widget paramaters (triggered with dot "." )
 - [ ] Navigation to the source Flutter file
 - [ ] A VSCode extension
 
-Currently, the hover feature is operational, but requires a few manual setup steps.
+Currently, the hover and autocomplete features are operational, but requires a few manual setup steps.
 
-## Steps to Enable Documentation
+## Steps to Enable Documentation and Auto complete
 1. Install [Joyride](https://marketplace.visualstudio.com/items/?itemName=betterthantomorrow.joyride) vscode extension
 2. Copy the `.joyride` and `dart_parser` directories into the root directory of your ClojureDart project.
 3. In the clojuredart projects root directory, run `dart pub get` to generate the `.dart_tool/package_config.json` file.
