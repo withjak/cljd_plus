@@ -1,9 +1,8 @@
 (ns autocomplete ;; Choose an appropriate namespace
   (:require ["vscode" :as vscode]
-            [rewrite-clj.zip :as z]
-            [joyride.core :as joyride] 
-            [clojure.string :as string]
-            [cljd-widget-hover :as cwh]))
+            [rewrite-clj.zip :as z] 
+            [utils]
+            [dart-docs]))
 
 (defn- vscode->rewrite-pos 
   [position]
@@ -26,7 +25,8 @@
                               z/seq?)
           when-not-list-stop 
           z/down
-          z/string))
+          z/string)) 
+    
     (catch :default e
       (println (str "Error parsing file '" (.-fileName document) "' in get-enclosing-form-fn-name: ") e)
       nil)))
@@ -35,41 +35,28 @@
   "Provides basic hardcoded autocomplete suggestions."
   [document position _token _context]
   ; (.appendLine (joyride/output-channel)  "1")
-  (when (and (= "clojure" (.-languageId document))
-             (.endsWith (.-fileName document) ".cljd"))  
-    (.appendLine (joyride/output-channel)  "2")
+  (when (utils/is-cljd-file? document) 
     (when-let [w-name (get-enclosing-form-fn-name document position)]
-      (let [wname (-> w-name
-                      (string/split #"/")
-                      last) 
-            {:keys [_doc constructors_json]}     (-> wname
-                                                     (string/split #"\.")
-                                                     first
-                                                     keyword
-                                                     (->> (get cwh/widgets-data))) 
+      (let [{:keys [name constructor]}           (utils/parse-widget-name w-name) 
+            {:keys [constructors_json]}          (get dart-docs/widgets-data name) 
             {:keys [positional_args named_args]} (->> constructors_json
-                                                      (filter #(= wname (:name %)))
+                                                      (filter #(= constructor (:name %)))
                                                       first) 
-            suggestions  (->> (concat positional_args named_args)
-                              (map :name)
-                              (remove nil?)
-                              (map #(str "." %))
-                              (map #(vscode/CompletionItem. %))
-                              vec)]
+            suggestions                          (->> (concat positional_args named_args)
+                                                      (map :name)
+                                                      (remove nil?)
+                                                      (map #(str "." %))
+                                                      (map #(vscode/CompletionItem. %))
+                                                      vec)]
 
         ;; Set the kind if desired (optional, affects icon)
         (doseq [suggestion suggestions]
-         (set! (.-kind suggestion) vscode/CompletionItemKind.Field)) 
-        
+          (set! (.-kind suggestion) vscode/CompletionItemKind.Field)) 
         
         (clj->js suggestions)))))
 
-
-(comment 
-  (let [code "(m/Widget some .title :hello .children [(m/text :bla) ] )"
-        tree (z/of-string code {:track-position? true})]
-    (->> (iterate z/up tree)
-         (take-while (complement nil?))
-         (map z/string)))
-  
-  )
+(defn register-cljd-widget-suggestions! []
+  (vscode/languages.registerCompletionItemProvider
+   "clojure"
+   #js{:provideCompletionItems provideCompletionItems}
+   "."))

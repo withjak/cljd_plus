@@ -2,7 +2,7 @@
   (:require [joyride.core :as joyride]
             ["vscode" :as vscode] 
             [autocomplete :as ac]
-            [cljd-widget-hover :as cwh]))
+            [hover]))
 
 
 (defonce !db (atom {:disposables []}))
@@ -30,27 +30,21 @@
   (clear-disposables!)
   
   #_
-  (push-disposable
+    (push-disposable
    ;; It might surprise you to see how often and when this happens,
    ;; and when it doesn't happen.
-   (vscode/workspace.onDidOpenTextDocument
-    (fn [doc]
-      (println "[Joyride example]"
-               (.-languageId doc)
-               "document opened:"
-               (.-fileName doc))))) 
+     (vscode/workspace.onDidOpenTextDocument
+      (fn [doc]
+        (println "[Joyride example]"
+                 (.-languageId doc)
+                 "document opened:"
+                 (.-fileName doc))))) 
   
   (push-disposable 
-   (cwh/register-cljd-widget-provider!)) 
+   (hover/register-cljd-widget-provider!)) 
   
   (push-disposable
-   (vscode/languages.registerCompletionItemProvider
-    "clojure" ;; Language selector
-    #js{:provideCompletionItems ac/provideCompletionItems} 
-    "." )
-   
-   )
-  )
+   (ac/register-cljd-widget-suggestions!)))
 
 (when (= (joyride/invoked-script) joyride/*file*)
   (my-main))
