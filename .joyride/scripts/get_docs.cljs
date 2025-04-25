@@ -3,7 +3,7 @@
             ["path" :as node-path]
             [clojure.walk :refer [keywordize-keys]]
             ["fs" :as fs]
-            [clojure.string :as str]
+            [clojure.string :as string]
             ))
 
 (defn read-json-sync [file-path]
@@ -14,29 +14,28 @@
 
 (defn format-widget-docs->markdown [widget-name widget-info]
   (when widget-info
-    (let [class-doc (:classDoc widget-info "") ;; Get class doc, default to empty string
-          constructors (:constructors widget-info []) ;; Get constructors list
-          markdown-parts [(str "## " widget-name "\n\n") ;; Add H2 Heading
-                          (if (not (str/blank? class-doc))
-                            (str class-doc "\n")
-                            "*No documentation found for widget.*\n")]]
-
-      ;; Add Constructors section if any exist
+    (let [class-doc         (:classDoc widget-info "*No documentation found for widget.*\n")
+          constructors      (:constructors widget-info [])
+          constructors_json (:constructors_json widget-info [])
+          markdown-parts    [(str "## " widget-name "\n\n")
+                             (str class-doc "\n")]]
+      
       (if (seq constructors)
-        (->> constructors
-             (map (fn [ctor]
-                    (let [signature (:signature ctor "")
-                          ctor-doc (:documentation ctor "")]
-                      [(str "```dart\n" signature "\n```\n\n") ;; Code fence for signature
-                       (if (not (str/blank? ctor-doc))
-                         (str ctor-doc "\n")
-                         "*No documentation found for this constructor.*\n")
-                       "---\n"]))) ;; Separator
-             (apply concat) ;; Flatten the list of parts for constructors
-             (into (conj markdown-parts "\n### Constructors\n\n")) ;; Add H3 heading and combine parts
-             (str/join "\n")) ;; Join all parts into a single string
-        ;; If no constructors, just join the heading and class doc
-        (str/join "\n" markdown-parts)))))
+        (let [contruct-signature (fn [ctor]
+                                   (let [signature (:signature ctor "")
+                                         ctor-doc  (:documentation ctor "*No documentation found for this constructor.*\n")]
+                                     [(str "```dart\n" signature "\n```\n\n")
+                                      (str ctor-doc "\n")
+                                      "---\n"]))
+              doc                (->> constructors
+                                      (map contruct-signature)
+                                      (apply concat)
+                                      (into (conj markdown-parts "\n### Constructors\n\n"))
+                                      (string/join "\n"))]
+          {:doc               doc
+           :constructors_json constructors_json})
+        {:doc               (string/join "\n" markdown-parts)
+         :constructors_json constructors_json}))))
 
 
 #_

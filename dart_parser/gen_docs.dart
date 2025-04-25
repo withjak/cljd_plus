@@ -18,6 +18,7 @@ Future<String?> _findSdkPathFromProject(String projectPath) async {
   final packageConfigPath =
       p.join(projectPath, '.dart_tool', 'package_config.json');
   stderr.writeln('Info: Attempting to find SDK path from $packageConfigPath');
+
   try {
     final file = File(packageConfigPath);
     if (!await file.exists()) {
@@ -25,6 +26,7 @@ Future<String?> _findSdkPathFromProject(String projectPath) async {
           'Warning: package_config.json not found at $packageConfigPath');
       return null;
     }
+
     final content = await file.readAsString();
     final json = jsonDecode(content) as Map<String, dynamic>;
 
@@ -267,6 +269,70 @@ String _buildSignatureFromParameters(
   return buffer.toString();
 }
 
+/// Builds a structured JSON representation of a constructor.
+Map<String, dynamic> _buildConstructorJson(
+    ConstructorDeclaration node, String constructorName) {
+  final Map<String, dynamic> constructorJson = {
+    'name': constructorName,
+    'is_const': node.constKeyword != null,
+    'positional_args': <Map<String, dynamic>>[],
+    'named_args': <Map<String, dynamic>>[],
+  };
+
+  final params = node.parameters.parameters;
+
+  for (final param in params) {
+    final paramData = <String, dynamic>{};
+
+    // Get Name
+    final name = param.name?.lexeme;
+    if (name != null) {
+      paramData['name'] = name;
+    } else {
+      paramData['name'] = '/* unknown name */';
+      stderr.writeln(
+          "Warning: Could not get name for parameter AST node: ${param.runtimeType} in $constructorName");
+    }
+
+    // Get Type
+    String typeString = 'dynamic /* unknown type */';
+    final declaredElement = param.declaredElement;
+    if (declaredElement != null) {
+      try {
+        typeString =
+            declaredElement.type.getDisplayString(withNullability: true);
+      } catch (e) {
+        stderr.writeln(
+            "Warning: Could not get display string for type of parameter ${paramData['name']} in $constructorName: $e. Falling back.");
+      }
+    } else {
+      stderr.writeln(
+          "Warning: Could not get declared element for parameter ${paramData['name']} in $constructorName. Type may be inaccurate.");
+    }
+    paramData['type'] = typeString;
+
+    // Determine required status
+    final isNamed = param.isNamed;
+    final isOptionalPositional = param.isOptionalPositional;
+    // Combine checks for required status across named and positional parameters
+    final isRequired = (declaredElement?.isRequiredNamed ?? false) ||
+        (declaredElement?.isRequiredPositional ?? false) ||
+        // Handling `required` keyword for positional parameters that might not have an element marked as requiredPositional
+        (param is FormalParameter && param.requiredKeyword != null && !isNamed);
+
+    paramData['required'] = isRequired;
+
+    // Add to the correct list based on whether it's named or positional
+    if (isNamed) {
+      constructorJson['named_args'].add(paramData);
+    } else {
+      constructorJson['positional_args'].add(paramData);
+    }
+  }
+
+  return constructorJson;
+}
+
 // --- Visitor for Indexing All Docs in a File ---
 class _FileIndexerVisitor extends GeneralizingAstVisitor<void> {
   final Map<String, Map<String, dynamic>> docsData; // Reference to the main map
@@ -321,6 +387,8 @@ class _FileIndexerVisitor extends GeneralizingAstVisitor<void> {
         final String? classDoc =
             _extractDocumentation(docComment, flutterSdkPath);
         final List<Map<String, String?>> constructorsList = [];
+        final List<Map<String, dynamic>> constructorsJsonList =
+            []; // New list for JSON
 
         for (final member in members.whereType<ConstructorDeclaration>()) {
           String constructorFullName = name;
@@ -328,8 +396,7 @@ class _FileIndexerVisitor extends GeneralizingAstVisitor<void> {
             constructorFullName = '$name.${member.name!.lexeme}';
           }
 
-          // Build signature using parameter details
-          // Ensure resolved units are used in runIndexAll for this to work reliably
+          // Build signature string (existing)
           final String signature =
               _buildSignatureFromParameters(member, constructorFullName);
 
@@ -342,11 +409,17 @@ class _FileIndexerVisitor extends GeneralizingAstVisitor<void> {
             'signature': signature,
             'documentation': constructorDoc,
           });
+
+          // Build constructor JSON (new)
+          final Map<String, dynamic> constructorJson =
+              _buildConstructorJson(member, constructorFullName);
+          constructorsJsonList.add(constructorJson);
         }
 
         docsData[name] = {
           'classDoc': classDoc,
-          'constructors': constructorsList,
+          'constructors': constructorsList, // Keep existing key
+          'constructors_json': constructorsJsonList, // Add new key
         };
       } else {
         stderr.writeln('Info: Skipping duplicate definition found for $name.');
@@ -400,8 +473,7 @@ Future<void> main(List<String> arguments) async {
     print('\nExamples:');
     print('  dart run gen_docs.dart --project-path ./my_flutter_app');
     print(
-      '  dart run gen_docs.dart --project-path ./my_flutter_app --sdk-path /path/to/flutter_sdk',
-    );
+        '  dart run gen_docs.dart --project-path ./my_flutter_app --sdk-path /path/to/flutter_sdk');
     exit(0);
   }
 
@@ -442,8 +514,7 @@ Future<void> main(List<String> arguments) async {
         p.join(flutterSdkPath, 'packages', 'flutter', 'lib');
     if (!Directory(flutterPackageLibPath).existsSync()) {
       stderr.writeln(
-        'Error: Invalid Flutter SDK path determined ($determinedSdkPathSource): $flutterSdkPath',
-      );
+          'Error: Invalid Flutter SDK path determined ($determinedSdkPathSource): $flutterSdkPath');
       stderr.writeln('       Directory not found: $flutterPackageLibPath');
       exit(1);
     }
@@ -487,7 +558,7 @@ Future<void> runIndexAll(
   // Added dartSdkPath
   stderr.writeln('--- Running in Index All Mode ---');
   final Map<String, Map<String, dynamic>> allDocsData = {}; // Main result map
-  
+
   // Find files to analyze (same logic as list mode)
   final List<String> targetDirs = [
     p.join(flutterSdkPath, 'packages', 'flutter', 'lib', 'src', 'widgets'),
