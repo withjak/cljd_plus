@@ -494,10 +494,15 @@ Future<void> main(List<String> arguments) async {
       argResults['project-path']!; // Mandatory, so ! is safe
   String? dartSdkPath; // Declare dartSdkPath here
 
+  // Normalize the project path to an absolute path
+  final String absoluteProjectPath = p.normalize(p.absolute(projectPath));
+  stderr.writeln('Info: Using normalized project path: $absoluteProjectPath');
+
   if (flutterSdkPath == null) {
     // SDK path not manually provided, try to find it from the mandatory project path
     determinedSdkPathSource = 'project package_config.json';
-    flutterSdkPath = await _findSdkPathFromProject(projectPath);
+    // Use the absolute path to find the SDK
+    flutterSdkPath = await _findSdkPathFromProject(absoluteProjectPath);
   }
 
   // Validate the determined path
@@ -549,12 +554,13 @@ Future<void> main(List<String> arguments) async {
   stderr.writeln('--- Running Documentation Indexing ---');
   // Pass both Flutter root path and internal Dart SDK path
   await runIndexAll(
-      flutterSdkPath!, projectPath, dartSdkPath!); // Use ! assertion
+      flutterSdkPath!, absoluteProjectPath, dartSdkPath!); // Use absolute path
 }
 
 // --- Function for Indexing All Documentation ---
 Future<void> runIndexAll(
     String flutterSdkPath, String projectPath, String dartSdkPath) async {
+  // projectPath is now absolute
   // Added dartSdkPath
   stderr.writeln('--- Running in Index All Mode ---');
   final Map<String, Map<String, dynamic>> allDocsData = {}; // Main result map
@@ -603,12 +609,13 @@ Future<void> runIndexAll(
   AnalysisContextCollection collection;
   AnalysisSession session;
   stderr.writeln(
-      'Info: Creating analysis context rooted in project: $projectPath');
+      'Info: Creating analysis context rooted in project: $projectPath'); // Use the passed (absolute) projectPath
   collection = AnalysisContextCollection(
-    includedPaths: [projectPath], // Root context in the project
+    includedPaths: [projectPath], // Root context in the project (now absolute)
     sdkPath: dartSdkPath, // Use the derived internal Dart SDK path here
   );
   // Use the session from the project context to analyze SDK files
+  // Pass the absolute path to contextFor
   session = collection.contextFor(projectPath).currentSession;
 
   stderr.writeln('Info: Analyzing files and extracting documentation...');
