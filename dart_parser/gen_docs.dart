@@ -565,26 +565,25 @@ Future<void> runIndexAll(
   stderr.writeln('--- Running in Index All Mode ---');
   final Map<String, Map<String, dynamic>> allDocsData = {}; // Main result map
 
-  // Find files to analyze (same logic as list mode)
+  // Find files to analyze
   final List<String> targetDirs = [
-    p.join(flutterSdkPath, 'packages', 'flutter', 'lib', 'src', 'widgets'),
-    p.join(flutterSdkPath, 'packages', 'flutter', 'lib', 'src', 'material'),
-    p.join(flutterSdkPath, 'packages', 'flutter', 'lib', 'src', 'cupertino'),
+    // Scan the entire flutter package library recursively
     p.join(flutterSdkPath, 'packages', 'flutter', 'lib'),
+    // Optional: Add other packages if needed, e.g.:
+    // p.join(flutterSdkPath, 'packages', 'flutter_test', 'lib'),
   ];
   final List<String> filesToAnalyze = [];
   stderr.writeln('Info: Scanning for .dart files...');
   for (final dirPath in targetDirs) {
-    /* ... file scanning logic ... */
     final directory = Directory(dirPath);
     if (!await directory.exists()) {
       stderr.writeln('Warning: Directory does not exist, skipping: $dirPath');
       continue;
     }
     try {
-      bool recursive = dirPath.contains(p.join('lib', 'src'));
+      // Always search recursively within the target directories
       await for (final entity in directory.list(
-        recursive: recursive,
+        recursive: true, // Always recursive
         followLinks: false,
       )) {
         if (entity is File &&
